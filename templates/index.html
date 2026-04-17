@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ResumeIQ — AI Resume Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #17171a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6aff;
+    --accent2: #38d9a9;
+    --text: #f0effe;
+    --muted: #8887a2;
+    --danger: #ff6b6b;
+    --warn: #ffd166;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.6;
+  }
+  header {
+    padding: 28px 40px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border);
+    position: relative; z-index: 1;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--accent); border-radius: 10px;
+    display: grid; place-items: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px;
+    color: #fff; flex-shrink: 0;
+  }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.3px; }
+  .logo-text span { color: var(--accent); }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 32px 80px; position: relative; z-index: 1; }
+  .hero { text-align: center; margin-bottom: 48px; }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 3.5vw, 42px); font-weight: 700;
+    letter-spacing: -0.5px; line-height: 1.1; margin-bottom: 14px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 480px; margin: 0 auto; }
+  .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 700px) {
+    .input-grid { grid-template-columns: 1fr; }
+    header { padding: 20px; }
+    main { padding: 32px 20px 60px; }
+  }
+  .field-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 12px;
+    letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+  }
+  .upload-btn {
+    font-size: 11px; color: var(--accent); cursor: pointer;
+    font-weight: 600; letter-spacing: 0.5px; transition: opacity 0.15s; user-select: none;
+  }
+  .upload-btn:hover { opacity: 0.75; }
+  .upload-btn.loading { color: var(--muted); cursor: default; pointer-events: none; }
+  .field textarea {
+    width: 100%; height: 260px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; line-height: 1.7;
+    padding: 18px; resize: vertical; transition: border-color 0.2s; outline: none;
+  }
+  .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,106,255,0.12); }
+  .field textarea::placeholder { color: #3e3e52; }
+  .actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 28px; border-radius: 12px;
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 14px;
+    letter-spacing: 0.2px; cursor: pointer; border: none; transition: all 0.18s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #6a57f0; transform: translateY(-1px); }
+  .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-purple { background: transparent; color: var(--accent); border: 1px solid rgba(124,106,255,0.4); }
+  .btn-purple:hover { background: rgba(124,106,255,0.1); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  #results { display: none; }
+  .score-row {
+    display: flex; align-items: center; gap: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 32px; margin-bottom: 20px;
+  }
+  .score-circle {
+    flex-shrink: 0; width: 90px; height: 90px;
+    border-radius: 50%; display: grid; place-items: center; position: relative;
+  }
+  .score-circle svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .score-circle .num {
+    position: relative; z-index: 1;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 28px;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+  .score-summary { flex: 1; }
+  .score-summary .label {
+    font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .score-summary p { font-size: 15px; line-height: 1.65; color: var(--text); }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px 24px 24px 8px; margin-bottom: 16px;
+  }
+  .chart-card h3 {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 20px; padding-left: 16px;
+  }
+  .chart-wrap { position: relative; height: 200px; }
+  .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 700px) { .cards-grid { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+  .card h3 {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 14px;
+  }
+  .card.strengths h3 { color: var(--accent2); }
+  .card.gaps h3 { color: var(--danger); }
+  .card.keywords h3 { color: var(--warn); }
+  .card.tip h3 { color: var(--accent); }
+  .card ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .card ul li { font-size: 14px; padding-left: 18px; position: relative; color: #ccc; line-height: 1.5; }
+  .card ul li::before { content: '→'; position: absolute; left: 0; color: var(--muted); font-size: 12px; }
+  .card.strengths ul li::before { color: var(--accent2); }
+  .card.gaps ul li::before { color: var(--danger); }
+  .keywords-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.25);
+    color: var(--warn); border-radius: 20px; padding: 4px 12px; font-size: 13px; font-weight: 500;
+  }
+  .tip-text { font-size: 14px; line-height: 1.65; color: #ccc; border-left: 3px solid var(--accent); padding-left: 14px; }
+
+  /* Rewriter */
+  .rewrite-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px; margin-bottom: 16px; display: none;
+  }
+  .rewrite-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+  }
+  .rewrite-header h3 {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.6px; text-transform: uppercase; color: var(--accent);
+  }
+  .bullet-item {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px; transition: border-color 0.2s;
+  }
+  .bullet-item.weak { border-color: rgba(255,107,107,0.3); }
+  .bullet-item.strong { border-color: rgba(56,217,169,0.2); }
+  .bullet-original {
+    font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 0;
+  }
+  .bullet-item.weak .bullet-original { text-decoration: line-through; color: #ff6b6b88; }
+  .bullet-divider {
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0; font-size: 11px; color: var(--muted);
+  }
+  .bullet-divider::before, .bullet-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .bullet-rewritten {
+    font-size: 13px; color: var(--accent2); line-height: 1.5;
+  }
+  .bullet-tag {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 4px; margin-bottom: 8px;
+  }
+  .bullet-tag.weak { background: rgba(255,107,107,0.15); color: var(--danger); }
+  .bullet-tag.strong { background: rgba(56,217,169,0.12); color: var(--accent2); }
+  .copy-bullet {
+    font-size: 11px; color: var(--accent); cursor: pointer;
+    font-weight: 600; margin-top: 8px; display: inline-block;
+    transition: opacity 0.15s;
+  }
+  .copy-bullet:hover { opacity: 0.7; }
+
+  /* Cover letter */
+  .cover-letter-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px; margin-top: 16px; display: none;
+  }
+  .cover-letter-box h3 {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.6px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px;
+  }
+  #cover-letter-text { font-size: 14px; line-height: 1.8; color: #ccc; white-space: pre-wrap; }
+  .copy-btn { margin-top: 14px; font-size: 13px; padding: 8px 18px; border-radius: 8px; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #fff; border-radius: 50%;
+    animation: spin 0.7s linear infinite; display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg {
+    background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);
+    border-radius: 10px; color: var(--danger); padding: 14px 18px;
+    font-size: 14px; display: none; margin-bottom: 20px;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-up { animation: fadeUp 0.4s ease forwards; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo-mark">R</div>
+  <div class="logo-text">Resume<span>IQ</span></div>
+</header>
+<main>
+  <div class="hero">
+    <h1>Your resume,<br/><em>ruthlessly optimized.</em></h1>
+    <p>Paste a job description and your resume — get an instant AI match score, gap analysis, and a custom cover letter.</p>
+  </div>
+
+  <div class="input-grid">
+    <div class="field">
+      <div class="field-label">Job Description</div>
+      <textarea id="jd" placeholder="Paste the full job description here..."></textarea>
+    </div>
+    <div class="field">
+      <div class="field-label">
+        Your Resume
+        <span class="upload-btn" id="upload-btn" onclick="triggerUpload(event)">↑ Upload PDF</span>
+      </div>
+      <input type="file" id="pdf-upload" accept=".pdf" style="display:none" onchange="uploadPDF(this)"/>
+      <textarea id="resume" placeholder="Paste your resume as plain text, or upload a PDF above..."></textarea>
+    </div>
+  </div>
+
+  <div class="error-msg" id="error"></div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="analyze-btn" onclick="analyze()">
+      <span class="spinner" id="analyze-spinner"></span>
+      <span id="analyze-label">Analyze Resume</span>
+    </button>
+    <button class="btn btn-secondary" id="cover-btn" onclick="generateCoverLetter()" disabled>
+      <span class="spinner" id="cover-spinner"></span>
+      <span id="cover-label">Generate Cover Letter</span>
+    </button>
+    <button class="btn btn-purple" id="rewrite-btn" onclick="rewriteBullets()" disabled>
+      <span class="spinner" id="rewrite-spinner"></span>
+      <span id="rewrite-label">Rewrite Bullets</span>
+    </button>
+  </div>
+
+  <div id="results">
+    <div class="score-row fade-up">
+      <div class="score-circle">
+        <svg viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,0.06)" stroke-width="6"/>
+          <circle id="score-arc" cx="45" cy="45" r="38" stroke="#7c6aff" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="238.76"
+            style="transition: stroke-dashoffset 1s ease"/>
+        </svg>
+        <span class="num" id="score-num">0</span>
+      </div>
+      <div class="score-summary">
+        <div class="label">Match Score</div>
+        <p id="score-summary-text"></p>
+      </div>
+    </div>
+
+    <div class="chart-card fade-up">
+      <h3>Score Breakdown</h3>
+      <div class="chart-wrap">
+        <canvas id="breakdown-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card strengths">
+        <h3>✓ Strengths</h3>
+        <ul id="strengths-list"></ul>
+      </div>
+      <div class="card gaps">
+        <h3>✗ Gaps</h3>
+        <ul id="gaps-list"></ul>
+      </div>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card keywords">
+        <h3>⚠ Missing Keywords</h3>
+        <div class="keywords-pills" id="keywords-pills"></div>
+      </div>
+      <div class="card tip">
+        <h3>→ Top Suggestion</h3>
+        <p class="tip-text" id="top-suggestion"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rewriter -->
+  <div class="rewrite-section" id="rewrite-section">
+    <div class="rewrite-header">
+      <h3>Bullet Point Rewriter</h3>
+    </div>
+    <div id="bullets-list"></div>
+  </div>
+
+  <!-- Cover letter -->
+  <div class="cover-letter-box" id="cover-box">
+    <h3>Generated Cover Letter</h3>
+    <div id="cover-letter-text"></div>
+    <button class="btn btn-secondary copy-btn" onclick="copyLetter()">Copy to clipboard</button>
+  </div>
+</main>
+
+<script>
+  let lastAnalyzed = false;
+  let breakdownChart = null;
+
+  function showError(msg) {
+    const el = document.getElementById('error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+  }
+
+  function triggerUpload(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('pdf-upload').click();
+  }
+
+  async function uploadPDF(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const btn = document.getElementById('upload-btn');
+    btn.textContent = 'Extracting...';
+    btn.classList.add('loading');
+    const formData = new FormData();
+    formData.append("file", file);
+    document.getElementById("resume").value = "";
+    try {
+      const res = await fetch("/upload-pdf", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) return showError(data.error);
+      document.getElementById("resume").value = data.text;
+      btn.textContent = '✓ PDF Loaded';
+      setTimeout(() => { btn.textContent = '↑ Upload PDF'; btn.classList.remove('loading'); }, 2000);
+    } catch(e) {
+      showError("PDF upload failed.");
+      btn.textContent = '↑ Upload PDF';
+      btn.classList.remove('loading');
+    }
+    input.value = "";
+  }
+
+  async function analyze() {
+    const jd = document.getElementById('jd').value.trim();
+    const resume = document.getElementById('resume').value.trim();
+    if (!jd || !resume) return showError('Please fill in both fields.');
+    document.getElementById('analyze-btn').disabled = true;
+    document.getElementById('analyze-spinner').style.display = 'block';
+    document.getElementById('analyze-label').textContent = 'Analyzing...';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('rewrite-section').style.display = 'none';
+    document.getElementById('cover-box').style.display = 'none';
+    try {
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({resume, job_description: jd})
+      });
+      const data = await res.json();
+      if (data.error) return showError(data.error);
+      renderResults(data);
+      lastAnalyzed = true;
+      document.getElementById('cover-btn').disabled = false;
+      document.getElementById('rewrite-btn').disabled = false;
+    } catch(e) {
+      showError('Something went wrong. Is the server running?');
+    } finally {
+      document.getElementById('analyze-btn').disabled = false;
+      document.getElementById('analyze-spinner').style.display = 'none';
+      document.getElementById('analyze-label').textContent = 'Analyze Resume';
+    }
+  }
+
+  function renderBreakdownChart(scores) {
+    const labels = ['Skills Match', 'Experience', 'Keywords', 'Presentation', 'Culture Fit'];
+    const values = [scores.skills_match, scores.experience, scores.keywords, scores.presentation, scores.culture_fit];
+    const colors = values.map(v =>
+      v >= 70 ? 'rgba(56,217,169,0.85)' : v >= 45 ? 'rgba(255,209,102,0.85)' : 'rgba(255,107,107,0.85)'
+    );
+    if (breakdownChart) breakdownChart.destroy();
+    const ctx = document.getElementById('breakdown-chart').getContext('2d');
+    breakdownChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { left: 30, right: 4, top: 4, bottom: 4 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => ` ${ctx.parsed.y}/100` },
+            backgroundColor: '#1e1e24', titleColor: '#f0effe', bodyColor: '#8887a2', padding: 10, cornerRadius: 8,
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#8887a2', font: { size: 12 } }, border: { display: false } },
+          y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8887a2', font: { size: 11 }, stepSize: 25 }, border: { display: false } }
+        }
+      }
+    });
+  }
+
+  function renderResults(data) {
+    const score = data.match_score;
+    const circumference = 238.76;
+    const offset = circumference - (score / 100) * circumference;
+    setTimeout(() => {
+      document.getElementById('score-arc').style.strokeDashoffset = offset;
+      const color = score >= 70 ? '#38d9a9' : score >= 45 ? '#ffd166' : '#ff6b6b';
+      document.getElementById('score-arc').style.stroke = color;
+    }, 100);
+    const numEl = document.getElementById('score-num');
+    let current = 0;
+    const interval = setInterval(() => {
+      current = Math.min(current + 2, score);
+      numEl.textContent = current;
+      if (current >= score) clearInterval(interval);
+    }, 20);
+    document.getElementById('score-summary-text').textContent = data.summary;
+    if (data.category_scores) renderBreakdownChart(data.category_scores);
+    const strengthsList = document.getElementById('strengths-list');
+    strengthsList.innerHTML = '';
+    (data.strengths || []).forEach(s => { const li = document.createElement('li'); li.textContent = s; strengthsList.appendChild(li); });
+    const gapsList = document.getElementById('gaps-list');
+    gapsList.innerHTML = '';
+    (data.gaps || []).forEach(g => { const li = document.createElement('li'); li.textContent = g; gapsList.appendChild(li); });
+    const pillsContainer = document.getElementById('keywords-pills');
+    pillsContainer.innerHTML = '';
+    (data.keywords_missing || []).forEach(k => { const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = k; pillsContainer.appendChild(pill); });
+    document.getElementById('top-suggestion').textContent = data.top_suggestion;
+    const resultsEl = document.getElementById('results');
+    resultsEl.style.display = 'block';
+    setTimeout(() => resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }
+
+  async function rewriteBullets() {
+    if (!lastAnalyzed) return;
+    const jd = document.getElementById('jd').value.trim();
+    const resume = document.getElementById('resume').value.trim();
+    document.getElementById('rewrite-btn').disabled = true;
+    document.getElementById('rewrite-spinner').style.display = 'block';
+    document.getElementById('rewrite-label').textContent = 'Rewriting...';
+    try {
+      const res = await fetch('/rewrite', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({resume, job_description: jd})
+      });
+      const data = await res.json();
+      if (data.error) return showError(data.error);
+      renderBullets(data.bullets);
+    } catch(e) {
+      showError('Rewrite failed. Is the server running?');
+    } finally {
+      document.getElementById('rewrite-btn').disabled = false;
+      document.getElementById('rewrite-spinner').style.display = 'none';
+      document.getElementById('rewrite-label').textContent = 'Rewrite Bullets';
+    }
+  }
+
+  function renderBullets(bullets) {
+    const container = document.getElementById('bullets-list');
+    container.innerHTML = '';
+    bullets.forEach((b, i) => {
+      const div = document.createElement('div');
+      div.className = `bullet-item ${b.weak ? 'weak' : 'strong'}`;
+      const tag = `<span class="bullet-tag ${b.weak ? 'weak' : 'strong'}">${b.weak ? 'Needs work' : 'Strong'}</span>`;
+      if (b.weak) {
+        div.innerHTML = `
+          ${tag}
+          <div class="bullet-original">${b.original}</div>
+          <div class="bullet-divider">rewritten as</div>
+          <div class="bullet-rewritten">${b.rewritten}</div>
+          <span class="copy-bullet" onclick="copyBullet(this, '${b.rewritten.replace(/'/g, "\\'")}')">Copy rewritten</span>
+        `;
+      } else {
+        div.innerHTML = `
+          ${tag}
+          <div class="bullet-original" style="color:#ccc;">${b.original}</div>
+        `;
+      }
+      container.appendChild(div);
+    });
+    const section = document.getElementById('rewrite-section');
+    section.style.display = 'block';
+    setTimeout(() => section.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }
+
+  function copyBullet(el, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      el.textContent = 'Copied!';
+      setTimeout(() => el.textContent = 'Copy rewritten', 2000);
+    });
+  }
+
+  async function generateCoverLetter() {
+    if (!lastAnalyzed) return;
+    const jd = document.getElementById('jd').value.trim();
+    const resume = document.getElementById('resume').value.trim();
+    document.getElementById('cover-btn').disabled = true;
+    document.getElementById('cover-spinner').style.display = 'block';
+    document.getElementById('cover-label').textContent = 'Writing...';
+    try {
+      const res = await fetch('/cover-letter', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({resume, job_description: jd})
+      });
+      const data = await res.json();
+      if (data.error) return showError(data.error);
+      document.getElementById('cover-letter-text').textContent = data.cover_letter;
+      const box = document.getElementById('cover-box');
+      box.style.display = 'block';
+      box.scrollIntoView({behavior: 'smooth', block: 'start'});
+    } catch(e) {
+      showError('Cover letter generation failed.');
+    } finally {
+      document.getElementById('cover-btn').disabled = false;
+      document.getElementById('cover-spinner').style.display = 'none';
+      document.getElementById('cover-label').textContent = 'Generate Cover Letter';
+    }
+  }
+
+  function copyLetter() {
+    const text = document.getElementById('cover-letter-text').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy to clipboard', 2000);
+    });
+  }
+</script>
+</body>
+</html>
