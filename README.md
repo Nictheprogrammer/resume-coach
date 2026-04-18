@@ -1,12 +1,3 @@
----
-title: Resume Coach
-emoji: 📄
-colorFrom: purple
-colorTo: blue
-sdk: docker
-pinned: false
----
-
 # ResumeIQ — AI Resume Coach
 
 An AI-powered resume coaching tool that analyzes resumes against job descriptions and provides actionable, personalized feedback in seconds.
